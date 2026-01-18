@@ -1,0 +1,5 @@
+fiftyone==1.11.0
+numpy==2.3.5
+torch==2.9.1
+torchvision==0.24.1
+clip @ git+https://github.com/openai/CLIP.git@dcba3cb2e2827b402d2701e7e1c7d9fed8a20ef1
