@@ -7,10 +7,14 @@ from utils import other_utils
 
 
 class DDPM:
-    def __init__(self, B, device):
+    def __init__(self, B, device, generator=None):
         self.B = B
         self.T = len(B)
         self.device = device
+        self.generator = generator
+        if self.generator is None:
+            self.generator = torch.Generator()
+            self.generator.manual_seed(51)
 
         # Forward diffusion variables
         self.a = 1.0 - self.B
@@ -30,7 +34,7 @@ class DDPM:
         t: timestep
         """
         t = t.int()
-        noise = torch.randn_like(x_0)
+        noise = torch.randn_like(x_0, generator=self.generator)
         sqrt_a_bar_t = self.sqrt_a_bar[t, None, None, None]
         sqrt_one_minus_a_bar_t = self.sqrt_one_minus_a_bar[t, None, None, None]
 
@@ -60,13 +64,13 @@ class DDPM:
             return u_t  # Reverse diffusion complete!
         else:
             B_t = self.B[t - 1]  # Apply noise from the previos timestep
-            new_noise = torch.randn_like(x_t)
+            new_noise = torch.randn_like(x_t, generator=self.generator)
             return u_t + torch.sqrt(B_t) * new_noise
 
     @torch.no_grad()
     def sample_images(self, model, img_ch, img_size, ncols, *model_args, axis_on=False):
         # Noise to generate images from
-        x_t = torch.randn((1, img_ch, img_size, img_size), device=self.device)
+        x_t = torch.randn((1, img_ch, img_size, img_size), device=self.device, generator=self.generator)
         plt.figure(figsize=(8, 8))
         hidden_rows = self.T / ncols
         plot_number = 1
@@ -88,7 +92,7 @@ class DDPM:
 # For use in notebook 05
 @torch.no_grad()
 def sample_w(
-    model, ddpm, input_size, T, c, device, w_tests=None, store_freq=10
+    model, ddpm, input_size, T, c, device, w_tests=None, store_freq=10, generator=None
 ):
     if w_tests is None:
         w_tests = [-2.0, -1.0, -0.5, 0.0, 0.5, 1.0, 2.0]
@@ -98,7 +102,11 @@ def sample_w(
     # One w for each c
     w = torch.tensor(w_tests).float().repeat_interleave(len(c))
     w = w[:, None, None, None].to(device)  # Make w broadcastable
-    x_t = torch.randn(n_samples, *input_size).to(device)
+    if generator is None:
+        generator = torch.Generator()
+        generator.manual_seed(51)
+
+    x_t = torch.randn(n_samples, *input_size, device=device, generator=generator)
 
     # One c for each w
     c = c.repeat(len(w_tests), 1)

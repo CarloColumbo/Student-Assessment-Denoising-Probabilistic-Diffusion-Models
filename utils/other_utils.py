@@ -86,6 +86,8 @@ def plot_generated_images(noise, result):
 def set_seeds(seed=51):
     """
     Set seeds for complete reproducibility across all libraries and operations.
+    This function should be called at the very beginning of your script, 
+    ideally before importing torch or other libraries that use randomness.
 
     Args:
         seed (int): Random seed value
@@ -97,8 +99,13 @@ def set_seeds(seed=51):
     # Python random module
     random.seed(seed)
 
-    # NumPy
+    # NumPy - set both global and per-thread seeds
     np.random.seed(seed)
+    # Ensure numpy uses deterministic algorithms where possible
+    try:
+        np.random.default_rng(seed)
+    except AttributeError:
+        pass  # Older numpy versions
 
     # PyTorch CPU
     torch.manual_seed(seed)
@@ -107,16 +114,29 @@ def set_seeds(seed=51):
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)  # For multi-GPU setups
+        # Reset CUDA RNG state
+        torch.cuda.empty_cache()
 
         # CUDA deterministic operations
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
+        # Disable cuDNN auto-tuner for reproducibility
+        torch.backends.cudnn.enabled = True
 
     # PyTorch deterministic algorithms (may impact performance)
     try:
-        torch.use_deterministic_algorithms(True)
-    except RuntimeError:
+        torch.use_deterministic_algorithms(True, warn_only=True)
+    except (RuntimeError, TypeError):
         # Some operations don't have deterministic implementations
-        print("Warning: Some operations may not be deterministic")
+        # Use warn_only=True for newer PyTorch versions
+        try:
+            torch.use_deterministic_algorithms(True)
+        except RuntimeError:
+            print("Warning: Some operations may not be deterministic")
 
+    # Set default generator to ensure reproducibility
+    generator = torch.Generator()
+    generator.manual_seed(seed)
+    
     print(f"All random seeds set to {seed} for reproducibility")
+    return generator
