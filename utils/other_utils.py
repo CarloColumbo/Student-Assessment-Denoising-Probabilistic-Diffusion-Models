@@ -133,10 +133,5 @@ def set_seeds(seed=51):
             torch.use_deterministic_algorithms(True)
         except RuntimeError:
             print("Warning: Some operations may not be deterministic")
-
-    # Set default generator to ensure reproducibility
-    generator = torch.Generator()
-    generator.manual_seed(seed)
     
     print(f"All random seeds set to {seed} for reproducibility")
-    return generator

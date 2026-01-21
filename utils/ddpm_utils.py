@@ -7,14 +7,10 @@ from utils import other_utils
 
 
 class DDPM:
-    def __init__(self, B, device, generator=None):
+    def __init__(self, B, device):
         self.B = B
         self.T = len(B)
         self.device = device
-        self.generator = generator
-        if self.generator is None:
-            self.generator = torch.Generator()
-            self.generator.manual_seed(51)
 
         # Forward diffusion variables
         self.a = 1.0 - self.B
@@ -34,7 +30,7 @@ class DDPM:
         t: timestep
         """
         t = t.int()
-        noise = torch.randn_like(x_0, generator=self.generator)
+        noise = torch.randn_like(x_0)
         sqrt_a_bar_t = self.sqrt_a_bar[t, None, None, None]
         sqrt_one_minus_a_bar_t = self.sqrt_one_minus_a_bar[t, None, None, None]
 
@@ -64,13 +60,13 @@ class DDPM:
             return u_t  # Reverse diffusion complete!
         else:
             B_t = self.B[t - 1]  # Apply noise from the previos timestep
-            new_noise = torch.randn_like(x_t, generator=self.generator)
+            new_noise = torch.randn_like(x_t)
             return u_t + torch.sqrt(B_t) * new_noise
 
     @torch.no_grad()
     def sample_images(self, model, img_ch, img_size, ncols, *model_args, axis_on=False):
         # Noise to generate images from
-        x_t = torch.randn((1, img_ch, img_size, img_size), device=self.device, generator=self.generator)
+        x_t = torch.randn((1, img_ch, img_size, img_size), device=self.device)
         plt.figure(figsize=(8, 8))
         hidden_rows = self.T / ncols
         plot_number = 1
@@ -103,7 +99,7 @@ def sample_w(
     w = torch.tensor(w_tests).float().repeat_interleave(len(c))
     w = w[:, None, None, None].to(device)  # Make w broadcastable
     if generator is None:
-        generator = torch.Generator()
+        generator = torch.Generator(device=device)
         generator.manual_seed(51)
 
     x_t = torch.randn(n_samples, *input_size, device=device, generator=generator)
